@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labs 4 & 5: Interactive Data Visualization with D3.js</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container"> <!-- Centers content and sets max width -->
+        <h1>Labs 4 & 5: Interactive Data Visualization with D3.js</h1>
+        <div id="controls">
+
+            <p id="value"></p>
+            <div id="slider"></div>
+
+            X: <select id="xVariable" class="variable"></select>
+            Y: <select id="yVariable" class="variable"></select>
+            size: <select id="sizeVariable" class="variable"></select>
+        </div>
+        <div id="tooltip" style="display:none"></div> 
+        <div id="vis"></div> <!--  Will hold our visualization (SVG) -->
+    </div>
+    <!-- Load D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-simple-slider@2"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>
