@@ -350,6 +350,7 @@ To avoid the map showing regions that are outliers in their locations (far away 
 Filters and queries are included from Category I and tooltips are included from Category II. The units selection dropdown could maybe count as an additional Category II feature. Other features could be added if there is time.
 I chose the blue-red color scale for the temperature variables for a reason that is probably obvious and used precipitation amounts and snow amounts for size. I have not included other variables due to much missing data.
 I used a fixed range for the color scale (-20 to 90 degrees Fahrenheit) as opposed to a dynamic range to highlight the contrast between mean, maximum, and minimum temperatures in addition to the spatial differences.
+The dataset does not contain October through December data, hence why these months are not in the slider.
 For the purpose of answering the last write-up question, I probably spent about six hours working so far, and processing the data (constructing the allDataByMonth and the avgByState arrays from the raw data) and debugging various issues with these arrays.
 Please feel free to clean up and format this code as needed.
 */
