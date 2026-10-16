@@ -1,26 +1,33 @@
-const margin = { top: 80, right: 60, bottom: 60, left: 100 };
-const width = 800 - margin.left - margin.right;
-const height = 600 - margin.top - margin.bottom;
+const margin = { top: 40, right: 40, bottom: 40, left: 60 };
+const width = 600 - margin.left - margin.right;
+const height = 400 - margin.top - margin.bottom;
 
-// The margin code above
+const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const naRegions = ['ME', 'NH', 'VT', 'MA', 'CT', 'RI', 'NY', 'NJ', 'PA', 'MD', 'DE', 'WV', 'VA', 'NC', 'SC', 'GA', 'FL', 'AL', 'MS', 'TN', 'KY', 'OH', 'IN', 'IL', 'MI', 'WI', 'IA', 'MN', 'ND', 'SD', 'NE', 'KS', 'OK', 'MO', 'AR', 'LA', 'TX', 'NM', 'CO', 'WY', 'MT', 'ID', 'UT', 'AZ', 'NV', 'CA', 'OR', 'WA', 'AK', 'NL', 'NS', 'PE', 'NB', 'QC', 'ON', 'MB', 'SK', 'AB', 'BC', 'YT', 'NT', 'NU'] // All 49 US States, 10 Canadian provinces, and 3 Canadian territories located in continental North America; used to filter data to avoid showing overseas regions far away from other data
+const colorScale = d3.scaleLinear(d3.schemeSet2).domain([-20, 90])
+  .range(['royalblue', 'red']);
+const optionsColor = ['avg_temp', 'max_temp', 'min_temp'];
+const optionsSize = ['precip', 'snow'];
+const optionsUnits = ['metric', 'US'];
 
-// Global variables
-let allData = []
-let xVar = 'income', yVar = 'lifeExp', sizeVar = 'population', targetYear = 2000
-let xScale, yScale, sizeScale
+const t = 1000;
 
-const continents = ['Africa', 'Asia', 'Oceania', 'Americas', 'Europe']
-const colorScale = d3.scaleOrdinal(continents, d3.schemeSet2); // d3.schemeSet2 is a set of predefined colors. 
-const options = ['income', 'lifeExp', 'gdp', 'population', 'childDeaths']
-const optionLabels = {
-    income: 'Income per Person',
-    lifeExp: 'Life Expectancy',
-    gdp: 'GDP per Capita',
-    population: 'Population',
-    childDeaths: 'Child Deaths'
-}
+const varDict = {
+    "lat": "Latitude",
+    "lon": "Longitude",
+    "avg_temp": "Average Daily Temperature",
+    "max_temp": "Average Maximum Temperature",
+    "min_temp": "Average Minimum Temperature",
+    "precip": "Monthly Precipitation",
+    "snow": "Monthly Snow",
+    "metric": "Metric",
+    "US": "US Customary"
+};
 
-// Create SVG
+let allData = [];
+let xVar = 'lon', yVar = 'lat', sizeVar = 'precip', colorVar = 'avg_temp', unitVar = 'metric', targetMonth = 1;
+let xScale, yScale, sizeScale;
+
 const svg = d3.select('#vis')
     .append('svg')
     .attr('width', width + margin.left + margin.right)
@@ -28,230 +35,321 @@ const svg = d3.select('#vis')
     .append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
-svg.append('g')
-    .attr('class', 'x-axis')
-    .attr('transform', `translate(0,${height})`)
+// A special function to take the element-wise average of an array of datapoints. If all states and months are not the same, an error is thrown.
+function average(weather_objects) {
+    lat_sum = 0;
+    lon_sum = 0;
+    avg_temp_sum = 0;
+    max_temp_sum = 0;
+    min_temp_sum = 0;
+    precip_sum = 0;
+    snow_sum = 0;
+    month = null;
+    state = null;
 
-svg.append('g')
-    .attr('class', 'y-axis')
+    weather_objects.forEach((element) => {
+        lat_sum += element.lat;
+        lon_sum += element.lon;
+        avg_temp_sum += element.avg_temp;
+        max_temp_sum += element.max_temp;
+        min_temp_sum += element.min_temp;
+        precip_sum += element.precip;
+        snow_sum += element.snow;
+        if(state == null) {
+            state = element.state;
+        } else if(state != element.state) {
+            throw new Error('state mismatch');
+        }
+        if(month == null) {
+            month = element.month;
+        } else if(month != element.month) {
+            throw new Error('month mismatch');
+        }
+    });
 
-// functions
-d3.csv('./data/gapminder_subset.csv', {})
-  .then(data => {
-        console.log(data)
-        allData = data
-        // placeholder for building vis
-        // placeholder for adding listerners
-    })
-
-function init(){
-    d3.csv("./data/gapminder_subset.csv", 
-    // this is the callback function, applied to each item in the array
-    function(d){
-        return {  
-        // Besides converting the types, we also simpilify the variable names here. 
-        country: d.country,
-        continent: d.continent,
-        year: +d.year, // using + to convert to numbers; same below
-        lifeExp: +d.life_expectancy, 
-        income: +d.income_per_person, 
-        gdp: +d.gdp_per_capita, 
-        childDeaths: +d.number_of_child_deaths,
-        // Your turn: 
-        population: +d.population
-     }
-    })
-    .then(data => {
-            console.log(data) // Check the structure in the console
-            allData = data // Save the processed data
-
-            // Initial rendering steps:
-            // P.S. You could move these into setupSelector(), 
-            setupSelector()
-            // but calling them separately makes the flow clearer.
-            updateAxes()
-            updateVis()
-            addLegend()
-        })
-    .catch(error => console.error('Error loading data:', error));
+    return {
+        month: month,
+        lat: lat_sum / weather_objects.length,
+        lon: lon_sum / weather_objects.length,
+        state: state,
+        avg_temp: avg_temp_sum / weather_objects.length,
+        max_temp: max_temp_sum / weather_objects.length,
+        min_temp: min_temp_sum / weather_objects.length,
+        precip: precip_sum / weather_objects.length * 30,
+        snow: snow_sum / weather_objects.length * 30
+    }
 }
 
-function setupSelector(){
+function init() {
+    d3.csv('./data/weather.csv', function (d) {
+        return {
+            month: months[+d.date.substring(4, 6) - 1],
+            lat: +d.latitude,
+            lon: +d.longitude,
+            state: d.state,
+            avg_temp: +d.TAVG,
+            max_temp: +d.TMAX,
+            min_temp: +d.TMIN,
+            precip: +d.PRCP,
+            snow: +d.SNOW
+        }
+    }).then(data => {
+        allData = [];
+        allDataByMonth = [[], [], [], [], [], [], [], [], [], [], [], []]; // A 2-D array, where the index i contains datapoints from the (i + 1)th month of the year
+        avgByState = [[], [], [], [], [], [], [], [], [], [], [], []]; // A 2-D array, where the index i contains datapoints from the (i + 1)th month of the year, and the index j within each month's array contains data corresponding to the region at index j in naRegions (e.g. the first entry of the first array contains average January conditions for Maine; the last entry of the third array contains average March conditions for Nunavut)
+
+        // Filter out non-continental North America regions. If avg_temp is null, compute this value based on the arithmetic average of min_temp and max_temp. If either min_temp or max_temp are null, exclude the datapoint. Null values are converted to 0, but manual inspection of weather.csv reveals that no avg_temp, max_temp, or min_temp value is 0, so such values can be treated as null.
+        data.forEach((element) => {
+            if (naRegions.includes(element.state)) {
+                if (element.min_temp != 0 && element.max_temp != 0) {
+                    if (element.avg_temp == 0) {
+                        element.avg_temp = (element.max_temp + element.min_temp) / 2;
+                    }
+                    allData.push(element);
+                }
+            }
+        });
+
+        allData.forEach((element) => {
+            allDataByMonth[months.indexOf(element.month)].push(element);
+        });
+
+        naRegions.forEach((region) => {
+            monthNum = 0;
+            allDataByMonth.forEach((monthData) => {
+                dataToAverage = [];
+                monthData.forEach((element) => {
+                    if(element.state == region) {
+                        dataToAverage.push(element);
+                    }
+                });
+                if(dataToAverage.length == 0) {
+                    avgByState[monthNum].push({
+                        avg_temp: null,
+                        lat: null,
+                        lon: null,
+                        max_temp: null,
+                        min_temp: null,
+                        month: months[monthNum],
+                        precip: null,
+                        snow: null,
+                        state: region
+                    })
+                } else {
+                    avgByState[monthNum].push(average(dataToAverage));
+                }
+                monthNum += 1;
+            });
+        });
+
+        allData = [];
+        avgByState.forEach((row) => {
+            row.forEach((col) => {
+                allData.push(col);
+            });
+        });
+
+        setupSelector();
+        updateAxes();
+        updateVis();
+    })
+        .catch(error => console.error('Error loading data:', error));
+}
+
+window.addEventListener('load', init);
+
+function setupSelector() {
+    d3.select('#value').text(months[targetMonth - 1]);
+
     let slider = d3
         .sliderHorizontal()
-        .min(d3.min(allData.map(d => +d.year))) // setup the range
-        .max(d3.max(allData.map(d => +d.year))) // setup the range
+        .min(1)
+        .max(9)
         .step(1)
-        .width(width)  // Widen the slider if needed
+        .width(width * 0.9)
         .displayValue(false)
         .on('onchange', (val) => {
-            targetYear = +val // Update the year
-            updateVis() // Refresh the chart
-        });
+            d3.select('#value').text(months[val - 1]);
+            targetMonth = +val;
+            updateVis();
+        })
+        .default(targetMonth);
 
     d3.select('#slider')
         .append('svg')
-        .attr('width', width)  // Adjust width if needed
+        .attr('width', width)
         .attr('height', 100)
         .append('g')
         .attr('transform', 'translate(30,30)')
         .call(slider);
 
-    d3.selectAll('.variable')
-   // loop over each dropdown button
-    .each(function() {
-        d3.select(this).selectAll('myOptions')
-        .data(options)
-        .enter()
-        .append('option')
-        .text(d => optionLabels[d]) // The displayed text
-        .attr("value",d => d) // The actual value used in the code
-    })
-    .on("change", function (event) {
-         // identify which dropdown was changed
-        const id = d3.select(this).property("id");
-        const value = d3.select(this).property("value");
-        // Your turn: Map to global variables
-        if (id === "xVariable") {
-            xVar = value;
-        } else if (id === "yVariable") {
-            yVar = value;
-        } else if (id === "sizeVariable") {
-            sizeVar = value;
-        }
-        updateAxes(); 
-        updateVis();
-    })
+    d3.select('#colorVariable')
+        .each(function () {
+            d3.select(this).selectAll('myOptions')
+                .data(optionsColor)
+                .enter()
+                .append('option')
+                .text(d => varDict[d]) // The displayed text
+                .attr("value", d => d) // The actual value used in the code
+        });
     
-    d3.select('#xVariable').property('value', xVar)
-    d3.select('#yVariable').property('value', yVar)
-    d3.select('#sizeVariable').property('value', sizeVar)
+    d3.select('#sizeVariable')
+        .each(function () {
+            d3.select(this).selectAll('myOptions')
+                .data(optionsSize)
+                .enter()
+                .append('option')
+                .text(d => varDict[d]) // The displayed text
+                .attr("value", d => d) // The actual value used in the code
+        });
+    
+    d3.select('#unitVariable')
+        .each(function () {
+            d3.select(this).selectAll('myOptions')
+                .data(optionsUnits)
+                .enter()
+                .append('option')
+                .text(d => varDict[d]) // The displayed text
+                .attr("value", d => d) // The actual value used in the code
+        });
+
+    d3.select('#colorVariable').property('value', colorVar);
+    d3.select('#sizeVariable').property('value', sizeVar);
+    d3.select('#unitVariable').property('value', unitVar);
+
+    d3.selectAll('.variable')
+        .each(function () {
+        })
+        .on("change", function (event) {
+            if (d3.select(this).property("id") == "colorVariable") {
+                colorVar = d3.select(this).property("value");
+            }
+
+            if (d3.select(this).property("id") == "sizeVariable") {
+                sizeVar = d3.select(this).property("value");
+            }
+
+            if (d3.select(this).property("id") == "unitVariable") {
+                unitVar = d3.select(this).property("value");
+            }
+            updateAxes();
+            updateVis();
+        })
 }
 
-function updateAxes(){
+function updateAxes() {
     svg.selectAll('.axis').remove()
     svg.selectAll('.labels').remove()
+
     xScale = d3.scaleLinear()
-        .domain([0, d3.max(allData, d => d[xVar])])
+        .domain([d3.min(allData, d => d[xVar]), d3.max(allData, d => d[xVar])])
         .range([0, width]);
+    const xAxis = d3.axisBottom(xScale)
+        .ticks(6)
+        .tickFormat((d, i) => {
+            return d3.format(".6~g")(d);
+        });
+
+    svg.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0,${height})`) // Position at the bottom
+        .call(xAxis);
 
     yScale = d3.scaleLinear()
-        .domain([0, d3.max(allData, d => d[yVar])])
+        .domain([d3.min(allData, d => d[yVar]), d3.max(allData, d => d[yVar])])
         .range([height, 0]);
+    const yAxis = d3.axisLeft(yScale).tickFormat((d, i) => {
+            return d3.format(".6~g")(d); // Do not write very large numbers out
+        });;
 
-    svg.select(".x-axis")
-        .call(d3.axisBottom(xScale));
-
-    svg.select(".y-axis")
-        .call(d3.axisLeft(yScale));
-    
-    sizeScale = d3.scaleSqrt()
-    .domain([0, d3.max(allData, d => d[sizeVar])]) // Largest bubble = largest data point 
-    .range([5, 20]); // Feel free to tweak these values if you want bigger or smaller bubbles
+    svg.append("g")
+        .attr("class", "axis")
+        .attr("transform", `translate(0,0)`) // Position on the left
+        .call(yAxis);
 
     // X-axis label
     svg.append("text")
         .attr("x", width / 2)
-        .attr("y", height + margin.bottom - 20)
+        .attr("y", height + margin.bottom - 5) // added some extra padding
         .attr("text-anchor", "middle")
-        .text(xVar) // Displays the current x-axis variable
+        .text(varDict[xVar]) // Displays the current x-axis variable
         .attr('class', 'labels')
 
-    // Y-axis label (rotated)
+    // Y-axis label
     svg.append("text")
         .attr("transform", "rotate(-90)")
         .attr("x", -height / 2)
-        .attr("y", -margin.left + 40)
+        .attr("y", -margin.left + 20) // added some extra padding
         .attr("text-anchor", "middle")
-        .text(yVar) // Displays the current y-axis variable
-        .attr('class', 'labels')
+        .text(varDict[yVar]) // Displays the current y-axis variable
+        .attr('class', 'labels');
+
+    sizeScale = d3.scaleSqrt()
+        .domain([0, d3.max(allData, d => d[sizeVar])]) // Largest bubble = largest data point 
+        .range([3, 10]); // Feel free to tweak these values if you want bigger or smaller bubbles
 }
 
-function updateVis(){
-  // Filter data for the current year
-    let currentData = allData.filter(d => d.year === targetYear)
-    const t = d3.transition().duration(750)
-
+function updateVis() {
+    let currentData = allData.filter(d => d.month === months[targetMonth - 1]);
     svg.selectAll('.points')
-    .data(currentData, d => d.country)
-    .join(
-        // When we have new data points
-        function(enter){
-            return enter
-            .append('circle')
-            .attr('class', 'points')
-            .attr('cx', d => xScale(d[xVar])) // Position on x-axis
-            .attr('cy', d => yScale(d[yVar])) // Position on y-axis
-            .attr('r',  d => sizeScale(d[sizeVar])) // Bubble size
-            .style('fill', d => colorScale(d.continent))
-            .on('mouseover', function (event, d) {
-            // console.log(d) // See the data point in the console for debugging
-                d3.select('#tooltip')
-                    // if you change opacity to hide it, you should also change opacity here
-                    .style("display", 'block') // Make the tooltip visible
-                    .html( // Change the html content of the <div> directly
-                    `<strong>${d.country}</strong><br/>
-                    Continent: ${d.continent}`)
-                    .style("left", (event.pageX + 20) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-                
-                 d3.select(this) // Refers to the hovered circle
-                    .style('stroke', 'black')
-                    .style('stroke-width', '4px')
-            })
-            .on("mouseout", function (event, d) {
-                d3.select('#tooltip')
-                .style('display', 'none') // Hide tooltip when cursor leaves
+        .data(currentData, d => d.state)
+        .join(
+            function (enter) {
+                return enter
+                    .append('circle')
+                    .attr('class', 'points')
+                    .attr('cx', d => xScale(d[xVar])) // Position on x-axis
+                    .attr('cy', d => yScale(d[yVar])) // Position on y-axis
+                    .style('fill', d => colorScale(d[colorVar]))
+                    .style('opacity', .5)  // Default color for now
+                    .attr('r', 0) // Bubble size
+                    .on('mouseover', function (event, d) {
+                        //console.log(d) // See the data point in the console for debugging
+                        d3.select('#tooltip')
+                            // if you change opacity to hide it, you should also change opacity here
+                            .style("display", 'block') // Make the tooltip visible
+                            .html( // Change the html content of the <div> directly
+                                `<strong>${d.state}</strong><br/>
+                ${varDict[colorVar]}: ${unitVar == 'metric' ? ((d[colorVar] - 32) * 5 / 9).toFixed(1) + ' °C': (d[colorVar]).toFixed(1) + ' °F'}<br>
+                ${varDict[sizeVar]}: ${unitVar == 'metric' ? (d[sizeVar] * 2.54).toFixed(2) + ' cm' : (d[sizeVar]).toFixed(2) + ' in'}`)
+                            .style("left", (event.pageX + 20) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                        d3.select(this) // Refers to the hovered circle
+                            .style('stroke', 'black')
+                            .style('stroke-width', '2px')
+                    })
+                    .on("mouseout", function (event, d) {
+                        d3.select('#tooltip')
+                            .style('display', 'none')
+                        d3.select(this)
+                            .style('stroke', 'none') // Hide tooltip when cursor leave
+                    })
+                    .transition(t)
+                    .attr('r', d => sizeScale(d[sizeVar])) // Bubble size
 
-                d3.select(this)
-                    .style('stroke', 'none')
-                    .style('stroke-width', null)
-            })
-            .transition(t) // Apply transition to bubble size
-            .attr('r', d => sizeScale(d[sizeVar])) 
-        },
-        // Update existing points when data changes
-        function(update){
-            return update
-            .attr('cx', d => xScale(d[xVar]))
-            .attr('cy', d => yScale(d[yVar]))
-            .attr('r',  d => sizeScale(d[sizeVar]))
-        },
-        // Remove points that no longer exist in the filtered data 
-        function(exit){
-            exit.remove()
-        }
-    )
-    .attr('r',  d => sizeScale(d[sizeVar]))
-    // Apply continent colors
-    .style('fill', d => colorScale(d.continent))
-    .style('opacity', .5) // Slight transparency for better visibility
+            },
+            function (update) {
+                return update
+                    .transition(t)
+                    .attr('cx', d => xScale(d[xVar]))
+                    .attr('cy', d => yScale(d[yVar]))
+                    .style('fill', d => colorScale(d[colorVar]))
+                    .attr('r', d => sizeScale(d[sizeVar]))
+            },
+            function (exit) {
+                exit.transition(t)
+                    .attr('r', 0)
+                    .remove()
+            }
+        )
 }
 
-function addLegend(){
-    let size = 10  // Size of the legend squares
-
-  // Your turn, draw a set of rectangles using D3
-    svg.selectAll('continentSquare')
-        .data(continents)
-        .enter()
-        .append('rect')
-        .attr('class', 'continentSquare')
-        .attr('width', size)
-        .attr('height', size)
-        .attr('x', (d, i) => i * (size + 100) + 100)
-        .attr('y', -margin.top / 2)
-        .style("fill", d => colorScale(d))
-
-     svg.selectAll("continentName")
-        .data(continents)
-        .enter()
-        .append("text")
-        .attr("y", -margin.top/2 + size) // Align vertically with the square
-        .attr("x", (d, i) => i * (size + 100) + 120)  
-        .style("fill", d => colorScale(d))  // Match text color to the square
-        .text(d => d) // The actual continent name
-        .attr("text-anchor", "left")
-        .style('font-size', '13px')
-}
-window.addEventListener('load', init);
+/*
+This visualization shows a map, where each circle represents a state, province, or territory and depicts a temperature variable (color) and a precipitation variable (size).
+To avoid the map showing regions that are outliers in their locations (far away from other data points), I included only locations that are part of mainland North America: the 49 continental US states, 9 Canadian provinces, and 1 Canadian territory. Regions like Hawaii and US territories were excluded. Of the continental US and Canada, the dataset is missing Washington, DC, Saskatchewan, the Yukon, and Nunavut.
+Filters and queries are included from Category I and tooltips are included from Category II. The units selection dropdown could maybe count as an additional Category II feature. Other features could be added if there is time.
+I chose the blue-red color scale for the temperature variables for a reason that is probably obvious and used precipitation amounts and snow amounts for size. I have not included other variables due to much missing data.
+I used a fixed range for the color scale (-20 to 90 degrees Fahrenheit) as opposed to a dynamic range to highlight the contrast between mean, maximum, and minimum temperatures in addition to the spatial differences.
+For the purpose of answering the last write-up question, I probably spent about six hours working so far, and processing the data (constructing the allDataByMonth and the avgByState arrays from the raw data) and debugging various issues with these arrays.
+Please feel free to clean up and format this code as needed.
+*/

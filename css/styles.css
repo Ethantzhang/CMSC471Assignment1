@@ -21,10 +21,9 @@
 .x-axis path,
 .y-axis path,
 .x-axis line,
-.y-axis .tick line {
+.y-axis line {
     stroke: #333;
     shape-rendering: crispEdges;
-    stroke-opacity: 0.7;
 }
 
 .x-axis text,
@@ -41,6 +40,10 @@
 button {
     padding: 8px 16px;
     margin-right: 10px;
+    border: none;
+    background-color: #b0ffb0;
+    font-size: 16px;
+    font-family: Impact;
 }
 
 #tooltip {
