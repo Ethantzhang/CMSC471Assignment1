@@ -4,18 +4,23 @@
     max-width: 800px;
     margin: 0px auto;
     line-height: 1.8;
+    background-color: #e0e1dd;
 }
+
 
 /* Container styling for layout */
 .container {
     max-width: 800px;
     margin: 2rem auto;
     font-family: Arial, sans-serif;
+    
 }
 
 #vis svg {
     margin: 2rem 0;
-    border: 1px solid #ccc; /*otherwise you can't see this part*/
+    border: 10px solid #003049; /*otherwise you can't see this part*/
+    border-style:groove;
+    background-color: #669bbc;
 }
 
 #legend svg {
@@ -68,4 +73,19 @@ button {
 .legend {
     font-size: 11px;
     pointer-events: none;
+}
+
+select {
+    padding: 5px;
+    font-size: 14px;
+    margin-right: 10px;
+    background-color: #778da9;
+}
+
+#writeup {
+    font-size: 20px;
+    line-height: 1.6;
+    text-indent: 20px;
+    margin-top: 20px;
+    font-family: 'Times New Roman', Times, serif;
 }

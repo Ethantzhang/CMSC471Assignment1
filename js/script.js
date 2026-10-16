@@ -360,7 +360,7 @@ function updateVis() {
                     .attr('cx', d => xScale(d[xVar])) // Position on x-axis
                     .attr('cy', d => yScale(d[yVar])) // Position on y-axis
                     .style('fill', d => colorScale(d[colorVar]))
-                    .style('opacity', .5)  // Default color for now
+                    .style('opacity', 0.75)  // Default color for now
                     .attr('r', 0) // Bubble size
                     .on('mouseover', function (event, d) {
                         //console.log(d) // See the data point in the console for debugging
