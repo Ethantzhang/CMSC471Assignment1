@@ -27,6 +27,7 @@ const varDict = {
 let allData = [];
 let xVar = 'lon', yVar = 'lat', sizeVar = 'precip', colorVar = 'avg_temp', unitVar = 'metric', targetMonth = 1;
 let xScale, yScale, sizeScale;
+let countryFeatures, stateFeatures;
 
 const svg = d3.select('#vis')
     .append('svg')
@@ -34,6 +35,11 @@ const svg = d3.select('#vis')
     .attr('height', height + margin.top + margin.bottom)
     .append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
+
+const legendSvg = d3.select('#legend')
+    .append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', 125);
 
 // A special function to take the element-wise average of an array of datapoints. If all states and months are not the same, an error is thrown.
 function average(weather_objects) {
@@ -81,7 +87,8 @@ function average(weather_objects) {
 }
 
 function init() {
-    d3.csv('./data/weather.csv', function (d) {
+    Promise.all([
+        d3.csv('./data/weather.csv', function (d) {
         return {
             month: months[+d.date.substring(4, 6) - 1],
             lat: +d.latitude,
@@ -93,7 +100,13 @@ function init() {
             precip: +d.PRCP,
             snow: +d.SNOW
         }
-    }).then(data => {
+        }),
+        d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'),
+        d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json')
+    ]).then(([data, countries, states]) => {
+        countryFeatures = topojson.feature(countries, countries.objects.countries).features
+            .filter(d => d.id === '124' || d.id === '840');
+        stateFeatures = topojson.feature(states, states.objects.states).features;
         allData = [];
         allDataByMonth = [[], [], [], [], [], [], [], [], [], [], [], []]; // A 2-D array, where the index i contains datapoints from the (i + 1)th month of the year
         avgByState = [[], [], [], [], [], [], [], [], [], [], [], []]; // A 2-D array, where the index i contains datapoints from the (i + 1)th month of the year, and the index j within each month's array contains data corresponding to the region at index j in naRegions (e.g. the first entry of the first array contains average January conditions for Maine; the last entry of the third array contains average March conditions for Nunavut)
@@ -244,49 +257,95 @@ function updateAxes() {
     xScale = d3.scaleLinear()
         .domain([d3.min(allData, d => d[xVar]), d3.max(allData, d => d[xVar])])
         .range([0, width]);
-    const xAxis = d3.axisBottom(xScale)
-        .ticks(6)
-        .tickFormat((d, i) => {
-            return d3.format(".6~g")(d);
-        });
-
-    svg.append("g")
-        .attr("class", "axis")
-        .attr("transform", `translate(0,${height})`) // Position at the bottom
-        .call(xAxis);
-
     yScale = d3.scaleLinear()
         .domain([d3.min(allData, d => d[yVar]), d3.max(allData, d => d[yVar])])
         .range([height, 0]);
-    const yAxis = d3.axisLeft(yScale).tickFormat((d, i) => {
-            return d3.format(".6~g")(d); // Do not write very large numbers out
-        });;
-
-    svg.append("g")
-        .attr("class", "axis")
-        .attr("transform", `translate(0,0)`) // Position on the left
-        .call(yAxis);
-
-    // X-axis label
-    svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", height + margin.bottom - 5) // added some extra padding
-        .attr("text-anchor", "middle")
-        .text(varDict[xVar]) // Displays the current x-axis variable
-        .attr('class', 'labels')
-
-    // Y-axis label
-    svg.append("text")
-        .attr("transform", "rotate(-90)")
-        .attr("x", -height / 2)
-        .attr("y", -margin.left + 20) // added some extra padding
-        .attr("text-anchor", "middle")
-        .text(varDict[yVar]) // Displays the current y-axis variable
-        .attr('class', 'labels');
 
     sizeScale = d3.scaleSqrt()
         .domain([0, d3.max(allData, d => d[sizeVar])]) // Largest bubble = largest data point 
         .range([3, 10]); // Feel free to tweak these values if you want bigger or smaller bubbles
+
+    drawMap();
+    drawLegends();
+}
+
+function geographicPath() {
+    const transform = d3.geoTransform({
+        point(longitude, latitude) {
+            this.stream.point(xScale(longitude), yScale(latitude));
+        }
+    });
+    return d3.geoPath(transform);
+}
+
+function drawMap() {
+    svg.selectAll('.map-layer').remove();
+    const path = geographicPath();
+    const map = svg.append('g').attr('class', 'map-layer');
+
+    map.selectAll('.country')
+        .data(countryFeatures)
+        .join('path')
+        .attr('class', 'country')
+        .attr('d', path)
+        .attr('fill', '#f7f7f7')
+        .attr('stroke', '#8a8a8a')
+        .attr('stroke-width', 1);
+
+    map.selectAll('.state')
+        .data(stateFeatures)
+        .join('path')
+        .attr('class', 'state')
+        .attr('d', path)
+        .attr('fill', '#eeeeee')
+        .attr('fill-opacity', 0.5)
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', 0.5);
+
+    map.lower();
+}
+
+function drawLegends() {
+    legendSvg.selectAll('.legend').remove();
+
+    const colorLegend = legendSvg.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(${margin.left}, 20)`);
+    const colorGradient = colorLegend.append('defs')
+        .append('linearGradient')
+        .attr('id', 'temperature-gradient');
+    colorGradient.append('stop').attr('offset', '0%').attr('stop-color', colorScale(-20));
+    colorGradient.append('stop').attr('offset', '100%').attr('stop-color', colorScale(90));
+    colorLegend.append('rect')
+        .attr('width', 140).attr('height', 12)
+        .attr('fill', 'url(#temperature-gradient)');
+    colorLegend.append('text').attr('y', -4).text(varDict[colorVar]);
+    colorLegend.append('text').attr('y', 28).text('-20°F');
+    colorLegend.append('text').attr('x', 140).attr('y', 28)
+        .attr('text-anchor', 'end').text('90°F');
+
+    const sizeLegend = legendSvg.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(${margin.left}, 75)`);
+    const maxSize = d3.max(allData, d => d[sizeVar]);
+    const legendValues = [maxSize / 4, maxSize / 2, maxSize];
+    sizeLegend.append('text').attr('y', -4).text(varDict[sizeVar]);
+    sizeLegend.selectAll('circle')
+        .data(legendValues)
+        .join('circle')
+        .attr('cx', (d, i) => 18 + i * 48)
+        .attr('cy', d => 25 - sizeScale(d))
+        .attr('r', d => sizeScale(d))
+        .attr('fill', 'none')
+        .attr('stroke', '#555');
+    sizeLegend.selectAll('text.value')
+        .data(legendValues)
+        .join('text')
+        .attr('class', 'value')
+        .attr('x', (d, i) => 18 + i * 48)
+        .attr('y', 42)
+        .attr('text-anchor', 'middle')
+        .text(d => d.toFixed(1));
 }
 
 function updateVis() {
