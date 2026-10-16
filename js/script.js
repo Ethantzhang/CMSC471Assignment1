@@ -320,9 +320,9 @@ function drawLegends() {
         .attr('width', 140).attr('height', 12)
         .attr('fill', 'url(#temperature-gradient)');
     colorLegend.append('text').attr('y', -4).text(varDict[colorVar]);
-    colorLegend.append('text').attr('y', 28).text('-20°F');
+    colorLegend.append('text').attr('y', 28).text(unitVar == 'metric' ? '-29 °C' : '-20 °F');
     colorLegend.append('text').attr('x', 140).attr('y', 28)
-        .attr('text-anchor', 'end').text('90°F');
+        .attr('text-anchor', 'end').text(unitVar == 'metric' ? '32 °C' : '90 °F');
 
     const sizeLegend = legendSvg.append('g')
         .attr('class', 'legend')
@@ -345,7 +345,7 @@ function drawLegends() {
         .attr('x', (d, i) => 18 + i * 48)
         .attr('y', 42)
         .attr('text-anchor', 'middle')
-        .text(d => d.toFixed(1));
+        .text(unitVar == 'metric' ? d => (d * 2.54).toFixed(1) + ' cm' : d => d.toFixed(1) + ' in');
 }
 
 function updateVis() {
