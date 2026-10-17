@@ -11,21 +11,25 @@
 <body>
     <div class="container"> <!-- Centers content and sets max width -->
         <h1>Project 1: January - September 2017 North American Weather Patterns Visualization</h1>
+        <i><h4>Use the slider and dropdown menus to interact with the visualization. Data sourced from NOAA Daily Weather in the U.S., 2017</h4></i>
     </div>
-
+    <b>Month</b>
     <p id="value"></p>
     <div id="slider"></div>
 
     <div class="controls">
-        Color: <select id="colorVariable" class="variable"></select>
-        Size: <select id="sizeVariable" class="variable"></select>
-        Units: <select id="unitVariable" class="variable"></select>
+        <b>Temperature Statistic:</b> <select id="colorVariable" class="variable"></select> <br>
+        <b>Precipitation Statistic:</b> <select id="sizeVariable" class="variable"></select>
+        
     </div>
 
     <div id="vis"></div> <!--  Will hold our visualization (SVG) -->
+    <div class="controls"><b><i>Units:</i></b> <select id="unitVariable" class="variable"></select></div>
     <div id="legend"></div> <!-- Holds legends outside the map -->
     <div id="tooltip" style="display:none"></div>
     <div>
+        <br>
+        <h2><i>Write-up</i></h2>
 <p id="writeup">
     <b>Introduction</b> <br>
     </p><p id="writeup">
